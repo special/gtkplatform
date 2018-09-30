@@ -137,7 +137,7 @@ static gboolean window_state_event_cb(GtkWidget *, GdkEvent *event, gpointer pla
 static gboolean enter_leave_window_notify_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
 {
     QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
-    bool entering = event->type == GDK_ENTER_NOTIFY;
+    bool entering = gdk_event_get_event_type(event) == GDK_ENTER_NOTIFY;
     qCDebug(lcWindowEvents) << "enter_leave_window_notify_cb" << pw << entering;
     pw->onEnterLeaveWindow(event, entering);
     return false;
@@ -571,16 +571,17 @@ void QGtkWindow::setWindowState(Qt::WindowState requestedState)
 
 void QGtkWindow::onWindowStateEvent(GdkEvent *event)
 {
-    GdkEventWindowState *ev = (GdkEventWindowState*)event;
     Qt::WindowState newState = Qt::WindowNoState;
+    GdkWindowState gdkChanged, gdkNewState;
+    gdk_event_get_window_state(event, &gdkChanged, &gdkNewState);
 
-    if (ev->new_window_state & GDK_WINDOW_STATE_ICONIFIED) {
+    if (gdkNewState & GDK_WINDOW_STATE_ICONIFIED) {
         newState = Qt::WindowMinimized;
     }
-    if (ev->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) {
+    if (gdkNewState & GDK_WINDOW_STATE_MAXIMIZED) {
         newState = Qt::WindowMaximized;
     }
-    if (ev->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) {
+    if (gdkNewState & GDK_WINDOW_STATE_FULLSCREEN) {
         newState = Qt::WindowFullScreen;
     }
 
@@ -593,9 +594,9 @@ void QGtkWindow::onWindowStateEvent(GdkEvent *event)
 
     // We must not send window activation changes for tooltip windows, as they
     // will auto-hide on activation change.
-    if (type != Qt::ToolTip && (ev->changed_mask & GDK_WINDOW_STATE_FOCUSED)) {
+    if (type != Qt::ToolTip && (gdkChanged & GDK_WINDOW_STATE_FOCUSED)) {
         static QPointer<QWindow> newActiveWindow = nullptr;
-        if (ev->new_window_state & GDK_WINDOW_STATE_FOCUSED) {
+        if (gdkNewState & GDK_WINDOW_STATE_FOCUSED) {
             qCDebug(lcWindow) << window() << " focused";
             newActiveWindow = window();
         } else if (newActiveWindow == window()) {
@@ -631,7 +632,6 @@ void QGtkWindow::onWindowStateEvent(GdkEvent *event)
 
 void QGtkWindow::onEnterLeaveWindow(GdkEvent *event, bool entered)
 {
-    GdkEventCrossing *ev = (GdkEventCrossing*)event;
     static QPointer<QWindow> enterWindow;
     static QPoint enterPos;
     static QPoint globalEnterPos;
@@ -639,14 +639,18 @@ void QGtkWindow::onEnterLeaveWindow(GdkEvent *event, bool entered)
     static QPoint leavePos;
     static QPoint globalLeavePos;
 
+    double x, y, xRoot, yRoot;
+    gdk_event_get_coords(event, &x, &y);
+    gdk_event_get_root_coords(event, &xRoot, &yRoot);
+
     if (entered) {
         enterWindow = window();
-        enterPos = QPoint(ev->x, ev->y);
-        globalEnterPos = QPoint(ev->x_root, ev->y_root);
+        enterPos = QPointF(x, y).toPoint();
+        globalEnterPos = QPointF(xRoot, yRoot).toPoint();
     } else {
         leaveWindow = window();
-        leavePos = QPoint(ev->x, ev->y);
-        globalLeavePos = QPoint(ev->x_root, ev->y_root);
+        leavePos = QPointF(x, y).toPoint();
+        globalLeavePos = QPointF(xRoot, yRoot).toPoint();
     }
 
     QTimer::singleShot(0, [=]() {

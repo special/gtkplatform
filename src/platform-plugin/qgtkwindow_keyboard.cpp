@@ -33,24 +33,52 @@
 
 #include "CSystrace.h"
 
+static bool qt_gdkKeyEventToFields(GdkEvent *event, int &hardwareKeycode, QString &text, Qt::KeyboardModifiers &qtMods, Qt::Key &qtKey)
+{
+    hardwareKeycode = gdk_event_get_scancode(event);
+
+    const char *rawText = NULL;
+    if (!gdk_event_get_string(event, &rawText)) {
+        return false;
+    }
+    Q_ASSERT(rawText);
+    text = QString::fromUtf8(rawText);
+
+    GdkModifierType state = (GdkModifierType)0;
+    if (!gdk_event_get_state(event, &state)) {
+        return false;
+    }
+    qtMods = qt_convertToQtKeyboardMods(state);
+
+    guint keyval = 0;
+    if (!gdk_event_get_keyval(event, &keyval)) {
+        return false;
+    }
+    qtKey = qt_convertToQtKey(keyval);
+
+    return true;
+}
+
 bool QGtkWindow::onKeyPress(GdkEvent *event)
 {
-    GdkEventKey *ev = (GdkEventKey*)event;
-    TRACE_EVENT_ASYNC_BEGIN0("input", "QGtkWindow::keyDown", (void*)ev->hardware_keycode);
+    int hardwareKeycode;
+    QString text;
+    Qt::KeyboardModifiers qtMods;
+    Qt::Key qtKey;
+    if (!qt_gdkKeyEventToFields(event, hardwareKeycode, text, qtMods, qtKey)) {
+        return false;
+    }
+
+    TRACE_EVENT_ASYNC_BEGIN0("input", "QGtkWindow::keyDown", (void*)(quintptr)hardwareKeycode);
     TRACE_EVENT0("input", "QGtkWindow::onKeyPress");
-
-    const QString text = QString::fromUtf8(ev->string, ev->length);
-    Qt::KeyboardModifiers qtMods = qt_convertToQtKeyboardMods(ev->state);
-    Qt::Key qtKey = qt_convertToQtKey(ev->keyval);
-
     return QWindowSystemInterface::handleExtendedKeyEvent(
         window(),
-        ev->time,
+        gdk_event_get_time(event),
         QEvent::KeyPress,
         qtKey,
         qtMods,
-        ev->hardware_keycode,
-        ev->hardware_keycode,
+        hardwareKeycode,
+        hardwareKeycode,
         0,
         text
     );
@@ -58,22 +86,24 @@ bool QGtkWindow::onKeyPress(GdkEvent *event)
 
 bool QGtkWindow::onKeyRelease(GdkEvent *event)
 {
-    GdkEventKey *ev = (GdkEventKey*)event;
-    TRACE_EVENT_ASYNC_END0("input", "QGtkWindow::keyDown", (void*)ev->hardware_keycode);
+    int hardwareKeycode;
+    QString text;
+    Qt::KeyboardModifiers qtMods;
+    Qt::Key qtKey;
+    if (!qt_gdkKeyEventToFields(event, hardwareKeycode, text, qtMods, qtKey)) {
+        return false;
+    }
+
+    TRACE_EVENT_ASYNC_END0("input", "QGtkWindow::keyDown", (void*)(quintptr)hardwareKeycode);
     TRACE_EVENT0("input", "QGtkWindow::onKeyRelease");
-
-    const QString text = QString::fromUtf8(ev->string, ev->length);
-    Qt::KeyboardModifiers qtMods = qt_convertToQtKeyboardMods(ev->state);
-    Qt::Key qtKey = qt_convertToQtKey(ev->keyval);
-
     return QWindowSystemInterface::handleExtendedKeyEvent(
         window(),
-        ev->time,
+        gdk_event_get_time(event),
         QEvent::KeyRelease,
         qtKey,
         qtMods,
-        ev->hardware_keycode,
-        ev->hardware_keycode,
+        hardwareKeycode,
+        hardwareKeycode,
         0,
         text
     );

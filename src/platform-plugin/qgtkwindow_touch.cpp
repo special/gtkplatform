@@ -40,12 +40,14 @@ Q_LOGGING_CATEGORY(lcTouchUpdate, "qt.qpa.gtk.touch.update");
 bool QGtkWindow::onTouchEvent(GdkEvent *event)
 {
     TRACE_EVENT0("input", "QGtkWindow::onTouchEvent");
-    GdkEventTouch *ev = (GdkEventTouch*)event;
+
+    GdkEventSequence *sequence = gdk_event_get_event_sequence(event);
+    Q_ASSERT(sequence);
 
     QWindowSystemInterface::TouchPoint *tp = 0;
-    int touchpointId = int(reinterpret_cast<intptr_t>(ev->sequence));
+    int touchpointId = int(reinterpret_cast<intptr_t>(sequence));
 
-    switch (ev->type) {
+    switch (gdk_event_get_event_type(event)) {
     case GDK_TOUCH_BEGIN:
         TRACE_EVENT_ASYNC_BEGIN0("input", "QGtkWindow::touchDown", (void*)touchpointId);
         qCDebug(lcTouch) << "Begin " << touchpointId;
@@ -81,7 +83,7 @@ bool QGtkWindow::onTouchEvent(GdkEvent *event)
         }
         break;
     default:
-        qWarning() << "Unknown touch type" << ev->type;
+        qWarning() << "Unknown touch type" << gdk_event_get_event_type(event);
         return false;
     }
 
@@ -92,12 +94,18 @@ bool QGtkWindow::onTouchEvent(GdkEvent *event)
     if (tp) {
         // Update it
         tp->pressure = 1.0; // ### should be able to read this somehow
-        tp->state = qt_convertToQtTouchPointState(ev->type);
+        tp->state = qt_convertToQtTouchPointState(gdk_event_get_event_type(event));
+
+        gdouble gdkX, gdkY;
+        if (!gdk_event_get_coords(event, &gdkX, &gdkY)) {
+            return false;
+        }
+        QPointF coords(gdkX, gdkY);
 
         // ### touchpoint size?
         // the area is supposed to be centered on the point, hence the - 0.5
         // subtractions (as we're reporting a size of 1).
-        QRectF tpArea = QRectF(ev->x - 0.5, ev->y - 0.5, 1, 1);
+        QRectF tpArea = QRectF(coords.x() - 0.5, coords.y() - 0.5, 1, 1);
 
         // make sure it really moved...
         if (tp->state == Qt::TouchPointMoved) {
@@ -109,22 +117,28 @@ bool QGtkWindow::onTouchEvent(GdkEvent *event)
         tp->area = tpArea;
 
         QSize s = window()->screen()->size();
-        qreal nx = ev->x / (s.width() / 2);
-        qreal ny = ev->y / (s.height() / 2);
+        qreal nx = coords.x() / (s.width() / 2);
+        qreal ny = coords.y() / (s.height() / 2);
         tp->normalPosition = QPointF(nx, ny);
     }
+
+    GdkModifierType state = (GdkModifierType)0;
+    if (!gdk_event_get_state(event, &state)) {
+        return false;
+    }
+    Qt::KeyboardModifiers qtMods = qt_convertToQtKeyboardMods(state);
 
     // report unconditionally even if tp was not found
     // (in that case there was a release event)
     QWindowSystemInterface::handleTouchEvent(
         window(),
-        ev->time,
+        gdk_event_get_time(event),
         m_touchDevice,
         m_activeTouchPoints,
-        qt_convertToQtKeyboardMods(ev->state)
+        qtMods
     );
 
-    switch (ev->type) {
+    switch (gdk_event_get_event_type(event)) {
     case GDK_TOUCH_END:
     case GDK_TOUCH_CANCEL:
         for (int i = 0; i < m_activeTouchPoints.length(); ++i) {

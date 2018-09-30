@@ -36,27 +36,59 @@
 Q_LOGGING_CATEGORY(lcMouse, "qt.qpa.gtk.mouse");
 Q_LOGGING_CATEGORY(lcMouseMotion, "qt.qpa.gtk.mouse.motion");
 
+static bool qt_gdkMouseEventToFields(GdkEvent *event, Qt::MouseButton &button, QPointF &coords, QPointF &rootCoords, Qt::KeyboardModifiers &qtMods) {
+    guint gdkButton = 0;
+    if (!gdk_event_get_button(event, &gdkButton)) {
+        return false;
+    }
+    button = qt_convertGButtonToQButton(gdkButton);
+
+    gdouble x = 0, y = 0;
+    if (!gdk_event_get_coords(event, &x, &y)) {
+        return false;
+    }
+    coords = QPointF(x, y);
+
+    if (!gdk_event_get_root_coords(event, &x, &y)) {
+        return false;
+    }
+    rootCoords = QPointF(x, y);
+
+    GdkModifierType state = (GdkModifierType)0;
+    if (!gdk_event_get_state(event, &state)) {
+        return false;
+    }
+    qtMods = qt_convertToQtKeyboardMods(state);
+
+    return true;
+}
+
 bool QGtkWindow::onButtonPress(GdkEvent *event)
 {
     TRACE_EVENT0("input", "QGtkWindow::onButtonPress");
     TRACE_EVENT_ASYNC_BEGIN0("input", "QGtkWindow::mouseDown", this);
-    GdkEventButton *ev = (GdkEventButton*)event;
 
     // ### would be nice if we could support GDK_2BUTTON_PRESS/GDK_3BUTTON_PRESS
     // directly (and not via emulation internally).
 
-    Qt::MouseButton b = qt_convertGButtonToQButton(ev->button);
+    Qt::MouseButton b;
+    QPointF coords, rootCoords;
+    Qt::KeyboardModifiers qtMods;
+    if (!qt_gdkMouseEventToFields(event, b, coords, rootCoords, qtMods)) {
+        return false;
+    }
+
     m_buttons |= b;
-    qCDebug(lcMouse) << "Pressed " << b << " at " << ev->x << ev->y << ev->x_root << ev->y_root << " total pressed " << m_buttons;
+    qCDebug(lcMouse) << "Pressed " << b << " at " << coords << rootCoords << " total pressed " << m_buttons;
 
     bool isTabletEvent = false;
     QWindowSystemInterface::handleMouseEvent(
         window(),
-        ev->time,
-        QPointF(ev->x, ev->y),
-        QPointF(ev->x_root, ev->y_root), // ### _root is probably wrong.
+        gdk_event_get_time(event),
+        coords,
+        rootCoords, // ### root is probably wrong.
         m_buttons,
-        qt_convertToQtKeyboardMods(ev->state),
+        qtMods,
         isTabletEvent ? Qt::MouseEventSynthesizedByQt : Qt::MouseEventNotSynthesized
     );
     return true;
@@ -65,20 +97,25 @@ bool QGtkWindow::onButtonPress(GdkEvent *event)
 bool QGtkWindow::onButtonRelease(GdkEvent *event)
 {
     TRACE_EVENT0("input", "QGtkWindow::onButtonRelease");
-    GdkEventButton *ev = (GdkEventButton*)event;
 
-    Qt::MouseButton b = qt_convertGButtonToQButton(ev->button);
+    Qt::MouseButton b;
+    QPointF coords, rootCoords;
+    Qt::KeyboardModifiers qtMods;
+    if (!qt_gdkMouseEventToFields(event, b, coords, rootCoords, qtMods)) {
+        return false;
+    }
+
     m_buttons &= ~b;
-    qCDebug(lcMouse) << "Released " << b << " at " << ev->x << ev->y << ev->x_root << ev->y_root << " total pressed " << m_buttons;
+    qCDebug(lcMouse) << "Released " << b << " at " << coords << rootCoords << " total pressed " << m_buttons;
 
     bool isTabletEvent = false;
     QWindowSystemInterface::handleMouseEvent(
         window(),
-        ev->time,
-        QPointF(ev->x, ev->y),
-        QPointF(ev->x_root, ev->y_root),
+        gdk_event_get_time(event),
+        coords,
+        rootCoords,
         m_buttons,
-        qt_convertToQtKeyboardMods(ev->state),
+        qtMods,
         isTabletEvent ? Qt::MouseEventSynthesizedByQt : Qt::MouseEventNotSynthesized
     );
     TRACE_EVENT_ASYNC_END0("input", "QGtkWindow::mouseDown", this);
@@ -87,22 +124,27 @@ bool QGtkWindow::onButtonRelease(GdkEvent *event)
 
 bool QGtkWindow::onMotionNotify(GdkEvent *event)
 {
-    TRACE_EVENT0("input", "QGtkWindow::onMotionNotify");
-    GdkEventButton *ev = (GdkEventButton*)event;
-    qCDebug(lcMouseMotion) << "Moved mouse at " << ev->x << ev->y << ev->x_root << ev->y_root;
+    Qt::MouseButton b;
+    QPointF coords, rootCoords;
+    Qt::KeyboardModifiers qtMods;
+    if (!qt_gdkMouseEventToFields(event, b, coords, rootCoords, qtMods)) {
+        return false;
+    }
 
-    QPoint mousePos(ev->x, ev->y);
-    mousePos = window()->mapToGlobal(mousePos);
+    TRACE_EVENT0("input", "QGtkWindow::onMotionNotify");
+    qCDebug(lcMouseMotion) << "Moved mouse at " << coords << rootCoords;
+
+    QPoint mousePos = window()->mapToGlobal(coords.toPoint());
     QCursor::setPos(mousePos);
 
     bool isTabletEvent = false;
     QWindowSystemInterface::handleMouseEvent(
         window(),
-        ev->time,
-        QPointF(ev->x, ev->y),
-        QPointF(ev->x_root, ev->y_root),
+        gdk_event_get_time(event),
+        coords,
+        rootCoords,
         m_buttons,
-        qt_convertToQtKeyboardMods(ev->state),
+        qtMods,
         isTabletEvent ? Qt::MouseEventSynthesizedByQt : Qt::MouseEventNotSynthesized
     );
     return true;
@@ -111,7 +153,13 @@ bool QGtkWindow::onMotionNotify(GdkEvent *event)
 bool QGtkWindow::onScrollEvent(GdkEvent *event)
 {
     TRACE_EVENT0("input", "QGtkWindow::onScrollEvent");
-    GdkEventScroll *ev = (GdkEventScroll*)event;
+
+    Qt::MouseButton b;
+    QPointF coords, rootCoords;
+    Qt::KeyboardModifiers qtMods;
+    if (!qt_gdkMouseEventToFields(event, b, coords, rootCoords, qtMods)) {
+        return false;
+    }
 
     QPoint angleDelta;
     QPoint pixelDelta;
@@ -123,7 +171,7 @@ bool QGtkWindow::onScrollEvent(GdkEvent *event)
     // which is pretty annoying.
     if (!m_scrollStarted) {
         m_scrollStarted = true;
-        m_scrollModifiers = qt_convertToQtKeyboardMods(ev->state);
+        m_scrollModifiers = qtMods;
         phase = Qt::ScrollBegin;
     }
     if (gdk_event_is_scroll_stop_event(event)) {
@@ -132,32 +180,42 @@ bool QGtkWindow::onScrollEvent(GdkEvent *event)
         phase = Qt::ScrollEnd;
     }
 
-    if (ev->direction == GDK_SCROLL_SMOOTH) {
+    GdkScrollDirection direction;
+    if (!gdk_event_get_scroll_direction(event, &direction)) {
+        return false;
+    }
+
+    gdouble deltaX, deltaY;
+    if (!gdk_event_get_scroll_deltas(event, &deltaX, &deltaY)) {
+        return false;
+    }
+
+    if (direction == GDK_SCROLL_SMOOTH) {
         // ### I have literally no idea what I'm doing here
         const int pixelsToDegrees = 50;
-        angleDelta.setX(-ev->delta_x * pixelsToDegrees);
-        angleDelta.setY(-ev->delta_y * pixelsToDegrees);
+        angleDelta.setX(-deltaX * pixelsToDegrees);
+        angleDelta.setY(-deltaY * pixelsToDegrees);
         source = Qt::MouseEventSynthesizedBySystem;
 
-        pixelDelta.setX(ev->delta_x * pixelsToDegrees);
-        pixelDelta.setY(-ev->delta_y * pixelsToDegrees);
-    } else if (ev->direction == GDK_SCROLL_UP ||
-               ev->direction == GDK_SCROLL_DOWN) {
-        angleDelta.setY(qBound(-120, int(ev->delta_y * 10000), 120));
-    } else if (ev->direction == GDK_SCROLL_LEFT ||
-               ev->direction == GDK_SCROLL_RIGHT) {
-        angleDelta.setX(qBound(-120, int(ev->delta_x * 10000), 120));
+        pixelDelta.setX(deltaX * pixelsToDegrees);
+        pixelDelta.setY(-deltaY * pixelsToDegrees);
+    } else if (direction == GDK_SCROLL_UP ||
+               direction == GDK_SCROLL_DOWN) {
+        angleDelta.setY(qBound(-120, int(deltaY * 10000), 120));
+    } else if (direction == GDK_SCROLL_LEFT ||
+               direction == GDK_SCROLL_RIGHT) {
+        angleDelta.setX(qBound(-120, int(deltaX * 10000), 120));
     } else {
         Q_UNREACHABLE();
     }
 
-    qCDebug(lcMouseMotion) << "Scrolled mouse at " << ev->x << ev->y << ev->x_root << ev->y_root << " angle delta " << angleDelta << " pixelDelta " << pixelDelta << " original deltas " << ev->delta_x << ev->delta_y;
+    qCDebug(lcMouseMotion) << "Scrolled mouse at " << coords << rootCoords << " angle delta " << angleDelta << " pixelDelta " << pixelDelta << " original deltas " << deltaX << deltaY;
 
     QWindowSystemInterface::handleWheelEvent(
         window(),
-        ev->time,
-        QPointF(ev->x, ev->y),
-        QPointF(ev->x_root, ev->y_root),
+        gdk_event_get_time(event),
+        coords,
+        rootCoords,
         pixelDelta,
         angleDelta,
         m_scrollModifiers,
