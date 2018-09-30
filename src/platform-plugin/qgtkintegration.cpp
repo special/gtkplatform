@@ -83,8 +83,10 @@ QGtkIntegration::QGtkIntegration(const QStringList &)
     , m_eglDisplay(nullptr)
 {
     systrace_init();
-    gtk_init(NULL, NULL);
+    gtk_init();
     notify_init(qApp->applicationName().toUtf8().constData());
+
+    qWarning("GTK platform running experimentally with GTK 4, expect fireworks");
 
     // Set up screens
     m_display = gdk_display_get_default();

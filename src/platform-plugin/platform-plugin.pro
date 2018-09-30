@@ -72,7 +72,7 @@ CONFIG += qpa/genericunixfontdatabase
 LIBS += -lX11-xcb -lxcb
 
 CONFIG += link_pkgconfig
-PKGCONFIG_PRIVATE += gdk-3.0 gtk+-3.0 libnotify
+PKGCONFIG_PRIVATE += gtk+-4.0 libnotify
 
 # for GL
 PKGCONFIG_PRIVATE += egl

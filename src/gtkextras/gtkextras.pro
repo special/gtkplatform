@@ -10,7 +10,7 @@ SOURCES += \
     qgtkheaderbar.cpp
 
 CONFIG += link_pkgconfig
-PKGCONFIG_PRIVATE += gdk-3.0 gtk+-3.0
+PKGCONFIG_PRIVATE += gtk+-4.0
 
 CONFIG += no_keywords
 

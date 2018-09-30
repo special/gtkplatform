@@ -57,7 +57,6 @@
      bool supportsMessages() const override;
 
  private:
-     QGtkRefPtr<GtkStatusIcon> m_icon;
      QGtkRefPtr<NotifyNotification> m_notification;
  };
 

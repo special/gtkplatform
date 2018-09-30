@@ -482,7 +482,7 @@ QMargins QGtkWindow::frameMargins() const
 void QGtkWindow::setVisible(bool visible)
 {
     if (visible) {
-        gtk_widget_show_all(m_window.get());
+        gtk_widget_show(m_window.get());
         gtk_widget_grab_focus(m_content.get());
     } else {
         gtk_widget_hide(m_window.get());
