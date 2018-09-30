@@ -4,3 +4,10 @@ Makefile
 moc_*.cpp
 moc_*.h
 *.moc
+*.version
+*.version.in
+
+include
+lib
+mkspecs
+plugins
