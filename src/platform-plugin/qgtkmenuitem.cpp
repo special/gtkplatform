@@ -155,7 +155,8 @@ QGtkRefPtr<GtkWidget> QGtkMenuItem::gtkMenuItem() const
 
         // stick our title on it
         GtkWidget *child = gtk_bin_get_child(GTK_BIN(mi.get()));
-        gtk_label_set_markup_with_mnemonic(GTK_LABEL(child), m_text.toUtf8().constData());
+        // ### Does this do mnemonics correctly? If not, is use-underline enough?
+        gtk_accel_label_set_label(GTK_ACCEL_LABEL(child), m_text.toUtf8().constData());
         gtk_widget_set_sensitive(GTK_WIDGET(mi.get()), m_enabled);
         ret = GTK_WIDGET(mi.get());
     } else {
