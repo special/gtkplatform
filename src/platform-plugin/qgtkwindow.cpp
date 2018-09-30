@@ -38,20 +38,18 @@
 Q_LOGGING_CATEGORY(lcWindow, "qt.qpa.gtk.window");
 Q_LOGGING_CATEGORY(lcWindowEvents, "qt.qpa.gtk.window");
 
-static gboolean map_cb(GtkWidget *, gpointer platformWindow)
+static void map_cb(GtkWidget *, gpointer platformWindow)
 {
     QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
     qCDebug(lcWindowEvents) << "map_cb" << pw;
     pw->onMap();
-    return FALSE;
 }
 
-static gboolean unmap_cb(GtkWidget *, gpointer platformWindow)
+static void unmap_cb(GtkWidget *, gpointer platformWindow)
 {
     QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
     qCDebug(lcWindowEvents) << "unmap_cb" << pw;
     pw->onUnmap();
-    return FALSE;
 }
 
 static gboolean configure_cb(GtkWidget *, GdkEvent *, gpointer platformWindow)
@@ -62,12 +60,11 @@ static gboolean configure_cb(GtkWidget *, GdkEvent *, gpointer platformWindow)
     return FALSE;
 }
 
-static gboolean size_allocate_cb(GtkWidget *, GdkRectangle *, gpointer platformWindow)
+static void size_allocate_cb(GtkWidget *, GdkRectangle *, gint, GdkRectangle *, gpointer platformWindow)
 {
     QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
     qCDebug(lcWindowEvents) << "size_allocate_cb" << pw;
     pw->onConfigure();
-    return FALSE;
 }
 
 static gboolean delete_cb(GtkWidget *, GdkEvent *, gpointer platformWindow)
