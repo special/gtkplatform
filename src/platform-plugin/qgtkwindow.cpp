@@ -235,15 +235,21 @@ void QGtkWindow::create(Qt::WindowType windowType)
     gtk_box_pack_end(GTK_BOX(vbox), m_content.get());
 
     // ### Proximity? Touchpad gesture? Tablet?
-    gtk_widget_set_events(m_content.get(),
-        GDK_POINTER_MOTION_MASK |
+    // XXX gtk_window_set_events was removed in a72404dd. A gdk equivalent
+    // exists, but it sounds like it might not be necessary at all, and that
+    // can't be used until the window is realized. Move this after realize
+    // if necessary.
+    /*
+    gdk_window_set_events(gtk_widget_get_window(GTK_WIDGET(m_window.get())),
+        GdkEventMask(GDK_POINTER_MOTION_MASK |
         GDK_BUTTON_PRESS_MASK |
         GDK_BUTTON_RELEASE_MASK |
         GDK_SCROLL_MASK |
         GDK_SMOOTH_SCROLL_MASK |
         GDK_TOUCH_MASK |
-        GDK_LEAVE_NOTIFY_MASK
+        GDK_LEAVE_NOTIFY_MASK)
     );
+    */
 
     // Register event handlers that need coordinates on the content widget, not
     // the window.
@@ -278,6 +284,7 @@ void QGtkWindow::create(Qt::WindowType windowType)
     m_touchDevice->setCapabilities(QTouchDevice::Position | QTouchDevice::MouseEmulation);
     QWindowSystemInterface::registerTouchDevice(m_touchDevice);
 
+    gtk_widget_realize(GTK_WIDGET(m_window.get()));
     setWindowState(window()->windowState());
     propagateSizeHints();
     setWindowFlags(window()->flags());
@@ -770,9 +777,8 @@ void QGtkWindow::propagateSizeHints()
         gtk_window_set_resizable(GTK_WINDOW(m_window.get()), true);
     }
 
-    gtk_window_set_geometry_hints(
-        GTK_WINDOW(m_window.get()),
-        m_window.get(),
+    gdk_window_set_geometry_hints(
+        gtk_widget_get_window(m_window.get()),
         &hints,
         GdkWindowHints(activeHints)
     );
