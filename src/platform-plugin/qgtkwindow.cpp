@@ -225,12 +225,14 @@ void QGtkWindow::create(Qt::WindowType windowType)
     gtk_container_add(GTK_CONTAINER(m_window.get()), vbox);
 
     m_menubar = GTK_MENU_BAR(gtk_menu_bar_new());
-    gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(m_menubar.get()), FALSE, FALSE, 0);
+    gtk_widget_set_hexpand(GTK_WIDGET(m_menubar.get()), TRUE);
+    gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(m_menubar.get()));
 
     m_content = gtk_drawing_area_new();
     g_signal_connect(m_content.get(), "draw", G_CALLBACK(QGtkWindow::drawCallback), this);
 
-    gtk_box_pack_end(GTK_BOX(vbox), m_content.get(), TRUE, TRUE, 0);
+    gtk_widget_set_vexpand(m_content.get(), TRUE);
+    gtk_box_pack_end(GTK_BOX(vbox), m_content.get());
 
     // ### Proximity? Touchpad gesture? Tablet?
     gtk_widget_set_events(m_content.get(),
