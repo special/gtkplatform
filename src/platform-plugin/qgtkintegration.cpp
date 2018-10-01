@@ -33,6 +33,7 @@
 #include "qgtkeventdispatcher.h"
 #include "qgtkclipboard.h"
 
+#include <QtCore/qloggingcategory.h>
 #include <QtWidgets/qapplication.h>
 #include <QtGui/private/qpixmap_raster_p.h>
 #include <QtGui/private/qguiapplication_p.h>
@@ -61,6 +62,8 @@ static EGLDisplay createWaylandEGLDisplay(wl_display *display);
 
 #include "CSystrace.h"
 
+Q_LOGGING_CATEGORY(lcIntegration, "qt.qpa.gtk.integration");
+
 QT_BEGIN_NAMESPACE
 
 class QCoreTextFontEngine;
@@ -86,7 +89,7 @@ QGtkIntegration::QGtkIntegration(const QStringList &)
     gtk_init();
     notify_init(qApp->applicationName().toUtf8().constData());
 
-    qWarning("GTK platform running experimentally with GTK 4, expect fireworks");
+    qCWarning(lcIntegration) << "GTK platform running experimentally with GTK 4, expect fireworks";
 
     // Set up screens
     m_display = gdk_display_get_default();
@@ -110,12 +113,12 @@ QGtkIntegration::QGtkIntegration(const QStringList &)
 #endif
 #ifdef GDK_WINDOWING_X11
     if (GDK_IS_X11_DISPLAY(m_display)) {
-        qWarning() << "Application is running under X11. While this may work, it is experimental.";
-        qWarning() << "Run under Wayland for best results.";
+        qCWarning(lcIntegration) << "Application is running under X11. While this may work, it is experimental.";
+        qCWarning(lcIntegration) << "Run under Wayland for best results.";
     }
     else
 #endif
-        qWarning("GTK platform does not support this display backend; GL contexts will fail");
+        qCWarning(lcIntegration) << "GTK platform does not support this display backend; GL contexts will fail";
 }
 
 QGtkIntegration::~QGtkIntegration()
@@ -131,14 +134,14 @@ QGtkIntegration::~QGtkIntegration()
 
 void QGtkIntegration::onMonitorAdded(GdkMonitor *monitor)
 {
-    qDebug() << "Added " << monitor;
+    qCDebug(lcIntegration) << "Added " << monitor;
     m_screens.append(new QGtkScreen(monitor));
     screenAdded(m_screens.at(m_screens.count() - 1));
 }
 
 void QGtkIntegration::onMonitorRemoved(GdkMonitor *monitor)
 {
-    qDebug() << "Removed " << monitor;
+    qCDebug(lcIntegration) << "Removed " << monitor;
     for (int i = 0; i < m_screens.count(); ++i) {
         if (m_screens.at(i)->monitor() == monitor) {
             removeScreen(m_screens.at(i)->screen());
@@ -225,14 +228,14 @@ void *QGtkIntegration::nativeResourceForIntegration(const QByteArray &resource)
 #ifdef GDK_WINDOWING_X11
         static bool xcb_warned = false;
         if (!xcb_warned) {
-            qWarning() << "XCB connection requested; this is experimental, and may not work well.";
+            qCWarning(lcIntegration) << "XCB connection requested; this is experimental, and may not work well.";
             xcb_warned = true;
         }
         Display *dpy = nullptr;
         if (GDK_IS_X11_DISPLAY(m_display)) {
             dpy = gdk_x11_display_get_xdisplay(m_display);
         } else {
-            qWarning() << "Can't get XCB connection, GDK_BACKEND is not X11.";
+            qCWarning(lcIntegration) << "Can't get XCB connection, GDK_BACKEND is not X11.";
         }
         xcb_connection_t *conn = XGetXCBConnection(dpy);
         result = reinterpret_cast<void*>(conn);
@@ -241,19 +244,19 @@ void *QGtkIntegration::nativeResourceForIntegration(const QByteArray &resource)
 #ifdef GDK_WINDOWING_X11
         static bool x11_warned = false;
         if (!x11_warned) {
-            qWarning() << "X11 display handle; this is experimental, and may not work well.";
+            qCWarning(lcIntegration) << "X11 display handle; this is experimental, and may not work well.";
             x11_warned = true;
         }
         Display *dpy = nullptr;
         if (GDK_IS_X11_DISPLAY(m_display)) {
             dpy = gdk_x11_display_get_xdisplay(m_display);
         } else {
-            qWarning() << "Can't get XCB connection, GDK_BACKEND is not X11.";
+            qCWarning(lcIntegration) << "Can't get XCB connection, GDK_BACKEND is not X11.";
         }
         result = reinterpret_cast<void*>(dpy);
 #endif
     } else {
-        qWarning() << "Unimplemented request for " << resource;
+        qCWarning(lcIntegration) << "Unimplemented request for " << resource;
     }
 
     return result;
@@ -293,7 +296,7 @@ void *QGtkIntegration::nativeResourceForScreen(const QByteArray &resource, QScre
 #ifdef GDK_WINDOWING_X11
         static bool rootwin_warned = false;
         if (!rootwin_warned) {
-            qWarning() << "X root window requested; this is experimental, and may not work well.";
+            qCWarning(lcIntegration) << "X root window requested; this is experimental, and may not work well.";
             rootwin_warned = true;
         }
         Display *dpy = nullptr;
@@ -305,13 +308,13 @@ void *QGtkIntegration::nativeResourceForScreen(const QByteArray &resource, QScre
             // use the first screen... hopefully this is okay? sigh...
             screen = xcb_setup_roots_iterator(xcb_get_setup(conn)).data;
         } else {
-            qWarning() << "Can't get root X window, GDK_BACKEND is not X11.";
+            qCWarning(lcIntegration) << "Can't get root X window, GDK_BACKEND is not X11.";
         }
 
         result = reinterpret_cast<void*>(screen ? screen->root : 0);
 #endif
     } else {
-        qWarning() << "Unimplemented request for " << resource << " on " << screen;
+        qCWarning(lcIntegration) << "Unimplemented request for " << resource << " on " << screen;
     }
     return result;
 }
@@ -322,7 +325,7 @@ void *QGtkIntegration::nativeResourceForWindow(const QByteArray &resource, QWind
     if (resource == "gtkwindow") {
         return static_cast<QGtkWindow*>(window->handle())->gtkWindow().get();
     }
-    qWarning() << "Unimplemented request for " << resource << " on " << window;
+    qCWarning(lcIntegration) << "Unimplemented request for " << resource << " on " << window;
     return result;
 }
 
@@ -336,14 +339,14 @@ void *QGtkIntegration::nativeResourceForContext(const QByteArray &resource, QOpe
 
     result = static_cast<QGtkOpenGLContext*>(context->handle())->nativeResource(resource);
     if (!result) {
-        qWarning() << "Unimplemented request for " << resource << " on " << context;
+        qCWarning(lcIntegration) << "Unimplemented request for " << resource << " on " << context;
     }
     return result;
 }
 
 QPlatformNativeInterface::NativeResourceForContextFunction QGtkIntegration::nativeResourceFunctionForContext(const QByteArray &resource)
 {
-    qWarning() << "Unimplemented request for " << resource;
+    qCWarning(lcIntegration) << "Unimplemented request for " << resource;
     return 0;
 }
 
@@ -376,12 +379,12 @@ static EGLDisplay createWaylandEGLDisplay(wl_display *display)
 
     EGLDisplay dpy = eglGetDisplay((EGLNativeDisplayType)display);
     if (dpy == EGL_NO_DISPLAY) {
-        qWarning() << "eglGetDisplay failed";
+        qCWarning(lcIntegration) << "eglGetDisplay failed";
         return dpy;
     }
 
     if (!eglInitialize(dpy, NULL, NULL)) {
-        qWarning() << "eglInitialize failed";
+        qCWarning(lcIntegration) << "eglInitialize failed";
         return EGL_NO_DISPLAY;
     }
 
