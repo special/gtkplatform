@@ -66,7 +66,7 @@ static const char *standardButtonText(int button)
 QGtk3Dialog::QGtk3Dialog(GtkWidget *gtkWidget) : gtkWidget(gtkWidget)
 {
     g_signal_connect_swapped(G_OBJECT(gtkWidget), "response", G_CALLBACK(onResponse), this);
-    g_signal_connect(G_OBJECT(gtkWidget), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+    gtk_window_set_hide_on_close(GTK_WINDOW(gtkWidget), TRUE);
 }
 
 QGtk3Dialog::~QGtk3Dialog()
