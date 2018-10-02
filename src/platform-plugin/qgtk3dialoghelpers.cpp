@@ -113,19 +113,19 @@ bool QGtk3Dialog::show(Qt::WindowFlags flags, Qt::WindowModality modality, QWind
 
     gtk_widget_realize(gtkWidget); // creates X window
 
-    GdkWindow *gdkWindow = gtk_widget_get_window(gtkWidget);
+    GdkSurface *gdkSurface = gtk_widget_get_surface(gtkWidget);
     if (parent)  {
         QGtkWindow *parentWin = static_cast<QGtkWindow*>(parent->handle());
         gtk_window_set_transient_for(GTK_WINDOW(gtkWidget), GTK_WINDOW(parentWin->gtkWindow().get()));
     }
 
     if (modality != Qt::NonModal) {
-        gdk_window_set_modal_hint(gdkWindow, true);
+        gdk_surface_set_modal_hint(gdkSurface, true);
         QGuiApplicationPrivate::showModalWindow(this);
     }
 
     gtk_widget_show(gtkWidget);
-    gdk_window_focus(gdkWindow, GDK_CURRENT_TIME);
+    gdk_surface_focus(gdkSurface, GDK_CURRENT_TIME);
     return true;
 }
 

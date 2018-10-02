@@ -178,23 +178,23 @@ void QGtkWindow::create(Qt::WindowType windowType)
     // First things first, set a proper type hint on the window.
     switch (windowType) {
     case Qt::Window:
-        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_WINDOW_TYPE_HINT_NORMAL);
+        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_SURFACE_TYPE_HINT_NORMAL);
         break;
     case Qt::Dialog:
     case Qt::Sheet:
-        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_WINDOW_TYPE_HINT_DIALOG);
+        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_SURFACE_TYPE_HINT_DIALOG);
         break;
     case Qt::Popup:
-        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_WINDOW_TYPE_HINT_MENU);
+        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_SURFACE_TYPE_HINT_MENU);
         break;
     case Qt::Tool:
-        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_WINDOW_TYPE_HINT_TOOLBAR);
+        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_SURFACE_TYPE_HINT_TOOLBAR);
         break;
     case Qt::SplashScreen:
-        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_WINDOW_TYPE_HINT_SPLASHSCREEN);
+        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_SURFACE_TYPE_HINT_SPLASHSCREEN);
         break;
     case Qt::ToolTip:
-        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_WINDOW_TYPE_HINT_TOOLTIP);
+        gtk_window_set_type_hint(GTK_WINDOW(m_window.get()), GDK_SURFACE_TYPE_HINT_TOOLTIP);
         break;
     default:
         break;
@@ -237,7 +237,7 @@ void QGtkWindow::create(Qt::WindowType windowType)
     // can't be used until the window is realized. Move this after realize
     // if necessary.
     /*
-    gdk_window_set_events(gtk_widget_get_window(GTK_WIDGET(m_window.get())),
+    gdk_surface_set_events(gtk_widget_get_window(GTK_WIDGET(m_window.get())),
         GdkEventMask(GDK_POINTER_MOTION_MASK |
         GDK_BUTTON_PRESS_MASK |
         GDK_BUTTON_RELEASE_MASK |
@@ -376,9 +376,9 @@ void QGtkWindow::onConfigure()
     // windowX and windowY are the window system coordinates of the top-left of the client
     // portion of the window. They don't include server-side decorations but do include client-side.
     int windowX = 0, windowY = 0;
-    GdkWindow *gwindow = gtk_widget_get_window(m_window.get());
+    GdkSurface *gwindow = gtk_widget_get_surface(m_window.get());
     if (gwindow)
-        gdk_window_get_position(gwindow, &windowX, &windowY);
+        gdk_surface_get_position(gwindow, &windowX, &windowY);
 
     // contentRect is the drawn content area of the window in window coordinates. This excludes
     // client-side decorations and other frame elements (e.g. menubar).
@@ -454,7 +454,7 @@ qreal QGtkWindow::devicePixelRatio() const
 
 QMargins QGtkWindow::frameMargins() const
 {
-    GdkWindow *gwindow = gtk_widget_get_window(m_window.get());
+    GdkSurface *gwindow = gtk_widget_get_surface(m_window.get());
     if (!gwindow) {
         return QMargins();
     }
@@ -462,12 +462,12 @@ QMargins QGtkWindow::frameMargins() const
     // Bounding rectangle of the entire window, including server-side frame
     // x and y are in root window coordinates
     GdkRectangle frameRect;
-    gdk_window_get_frame_extents(gwindow, &frameRect);
+    gdk_surface_get_frame_extents(gwindow, &frameRect);
 
     // Position of the top-left of the window area, excluding server-side frames,
     // also in root window coordinates
     int originX, originY;
-    gdk_window_get_origin(gwindow, &originX, &originY);
+    gdk_surface_get_origin(gwindow, &originX, &originY);
 
     // Rectangle in window coordinates of the content area, excluding client-side frames
     GdkRectangle contentRect;
@@ -578,16 +578,16 @@ void QGtkWindow::setWindowState(Qt::WindowState requestedState)
 void QGtkWindow::onWindowStateEvent(GdkEvent *event)
 {
     Qt::WindowState newState = Qt::WindowNoState;
-    GdkWindowState gdkChanged, gdkNewState;
-    gdk_event_get_window_state(event, &gdkChanged, &gdkNewState);
+    GdkSurfaceState gdkChanged, gdkNewState;
+    gdk_event_get_surface_state(event, &gdkChanged, &gdkNewState);
 
-    if (gdkNewState & GDK_WINDOW_STATE_ICONIFIED) {
+    if (gdkNewState & GDK_SURFACE_STATE_ICONIFIED) {
         newState = Qt::WindowMinimized;
     }
-    if (gdkNewState & GDK_WINDOW_STATE_MAXIMIZED) {
+    if (gdkNewState & GDK_SURFACE_STATE_MAXIMIZED) {
         newState = Qt::WindowMaximized;
     }
-    if (gdkNewState & GDK_WINDOW_STATE_FULLSCREEN) {
+    if (gdkNewState & GDK_SURFACE_STATE_FULLSCREEN) {
         newState = Qt::WindowFullScreen;
     }
 
@@ -600,9 +600,9 @@ void QGtkWindow::onWindowStateEvent(GdkEvent *event)
 
     // We must not send window activation changes for tooltip windows, as they
     // will auto-hide on activation change.
-    if (type != Qt::ToolTip && (gdkChanged & GDK_WINDOW_STATE_FOCUSED)) {
+    if (type != Qt::ToolTip && (gdkChanged & GDK_SURFACE_STATE_FOCUSED)) {
         static QPointer<QWindow> newActiveWindow = nullptr;
-        if (gdkNewState & GDK_WINDOW_STATE_FOCUSED) {
+        if (gdkNewState & GDK_SURFACE_STATE_FOCUSED) {
             qCDebug(lcWindow) << window() << " focused";
             newActiveWindow = window();
         } else if (newActiveWindow == window()) {
@@ -611,7 +611,7 @@ void QGtkWindow::onWindowStateEvent(GdkEvent *event)
         }
 
         // We need a timer here to debounce the focus changes. Reason being that
-        // one window appearing results in two GDK_WINDOW_STATE_FOCUSED changes:
+        // one window appearing results in two GDK_SURFACE_STATE_FOCUSED changes:
         // one for the old window to remove it, one for the new window to add
         // it.
         //
@@ -629,11 +629,11 @@ void QGtkWindow::onWindowStateEvent(GdkEvent *event)
         });
     }
 
-    // GDK_WINDOW_STATE_TILED not handled.
-    // GDK_WINDOW_STATE_STICKY not handled.
-    // GDK_WINDOW_STATE_ABOVE not handled.
-    // GDK_WINDOW_STATE_BELOW not handled.
-    // GDK_WINDOW_STATE_WITHDRAWN not handled.
+    // GDK_SURFACE_STATE_TILED not handled.
+    // GDK_SURFACE_STATE_STICKY not handled.
+    // GDK_SURFACE_STATE_ABOVE not handled.
+    // GDK_SURFACE_STATE_BELOW not handled.
+    // GDK_SURFACE_STATE_WITHDRAWN not handled.
 }
 
 void QGtkWindow::onEnterLeaveWindow(GdkEvent *event, bool entered)
@@ -673,8 +673,8 @@ void QGtkWindow::onEnterLeaveWindow(GdkEvent *event, bool entered)
 void QGtkWindow::onLeaveContent()
 {
     // reset the mouse cursor.
-    QGtkRefPtr<GdkCursor> c = gdk_cursor_new_from_name(gdk_display_get_default(), "default");
-    gdk_window_set_cursor(gtk_widget_get_window(m_window.get()), c.get());
+    QGtkRefPtr<GdkCursor> c = gdk_cursor_new_from_name("default", NULL);
+    gdk_surface_set_cursor(gtk_widget_get_surface(m_window.get()), c.get());
 }
 
 WId QGtkWindow::winId() const
@@ -737,7 +737,7 @@ void QGtkWindow::propagateSizeHints()
     QSize baseSize = windowBaseSize();
     QSize sizeIncrement = windowSizeIncrement();
 
-    int activeHints = GdkWindowHints(0);
+    int activeHints = GdkSurfaceHints(0);
     GdkGeometry hints;
     if (!minSize.isNull()) {
         hints.min_width = minSize.width();
@@ -774,10 +774,10 @@ void QGtkWindow::propagateSizeHints()
         gtk_window_set_resizable(GTK_WINDOW(m_window.get()), true);
     }
 
-    gdk_window_set_geometry_hints(
-        gtk_widget_get_window(m_window.get()),
+    gdk_surface_set_geometry_hints(
+        gtk_widget_get_surface(m_window.get()),
         &hints,
-        GdkWindowHints(activeHints)
+        GdkSurfaceHints(activeHints)
     );
 }
 

@@ -124,8 +124,8 @@ void QGtkCursor::changeCursor(QCursor *windowCursor, QWindow *window)
     QGtkWindow *pw = static_cast<QGtkWindow*>(window->handle());
 
     // ### are we called before being realized, sometimes? why does this happen?
-    if (gtk_widget_get_window(pw->gtkWindow().get()) != nullptr) {
-        gdk_window_set_cursor(gtk_widget_get_window(pw->gtkWindow().get()), c.get());
+    if (gtk_widget_get_surface(pw->gtkWindow().get()) != nullptr) {
+        gdk_surface_set_cursor(gtk_widget_get_surface(pw->gtkWindow().get()), c.get());
     }
 }
 
