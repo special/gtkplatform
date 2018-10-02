@@ -260,6 +260,7 @@ void QGtkWindow::create(Qt::WindowType windowType)
     g_signal_connect(m_content.get(), "leave-notify-event", G_CALLBACK(leave_content_notify_cb), this);
     gtk_widget_set_can_focus(m_content.get(), true);
 
+#if 0 // XXX
     m_zoomGesture = gtk_gesture_zoom_new(m_content.get());
     gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(m_zoomGesture.get()), GTK_PHASE_CAPTURE);
     g_signal_connect(m_zoomGesture.get(), "scale-changed", G_CALLBACK(QGtkWindow::zoom_cb), this);
@@ -275,6 +276,7 @@ void QGtkWindow::create(Qt::WindowType windowType)
     g_signal_connect(m_rotateGesture.get(), "end", G_CALLBACK(QGtkWindow::end_rotate_cb), this);
 
     gtk_gesture_group(m_zoomGesture.get(), m_rotateGesture.get());
+#endif
 
     m_touchDevice = new QTouchDevice;
     m_touchDevice->setType(QTouchDevice::TouchScreen); // ### use GdkDevice or not?
