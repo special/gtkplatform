@@ -175,7 +175,7 @@ void QGtkCourierObject::queueDraw(QGtkWindow *win)
 
 QGtkCourierObject *QGtkCourierObject::instance;
 
-void QGtkWindow::invalidateRegion(const QRegion &region)
+void QGtkWindow::invalidateRegion(const QRegion &)
 {
     auto courier = QGtkCourierObject::instance;
     Q_ASSERT(courier);
@@ -185,10 +185,8 @@ void QGtkWindow::invalidateRegion(const QRegion &region)
         return;
     }
 
-    QRegion realRegion = region.isNull() ? QRegion(m_frame.rect()) : region;
-    cairo_region_t *cairoRegion = qt_convertToCairoRegion(realRegion);
-    gtk_widget_queue_draw_region(m_content.get(), cairoRegion);
-    cairo_region_destroy(cairoRegion);
+    // GTK4 removed gtk_widget_queue_draw_region; I think we are supposed to "just let the renderer decide" now.
+    gtk_widget_queue_draw(m_content.get());
 }
 
 QImage *QGtkWindow::beginUpdateFrame(const QString &reason)
