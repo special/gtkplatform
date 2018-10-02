@@ -706,10 +706,13 @@ void QGtkWindow::setWindowIcon(const QIcon &icon)
         return;
     }
 
+    // ### Should probably get more sizes from QIcon for the list
     QGtkRefPtr<GdkPixbuf> pb = qt_iconToPixbuf(icon);
+    QGtkRefPtr<GdkTexture> tx = gdk_texture_new_for_pixbuf(pb.get());
+    GList *list = g_list_prepend(NULL, tx.get());
 
-    // ### consider gtk_window_set_icon_list
-    gtk_window_set_icon(GTK_WINDOW(m_window.get()), pb.get());
+    gtk_window_set_icon_list(GTK_WINDOW(m_window.get()), list);
+    g_list_free(list);
 }
 
 void QGtkWindow::raise()
