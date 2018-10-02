@@ -71,7 +71,7 @@ QGtk3Dialog::QGtk3Dialog(GtkWidget *gtkWidget) : gtkWidget(gtkWidget)
 
 QGtk3Dialog::~QGtk3Dialog()
 {
-    gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+    // XXX gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
     gtk_widget_destroy(gtkWidget);
 }
 

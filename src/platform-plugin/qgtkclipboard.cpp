@@ -104,6 +104,7 @@ bool QGtkClipboard::ownsMode(QClipboard::Mode mode) const
 QGtkClipboardData::QGtkClipboardData(QClipboard::Mode clipboardMode)
     : m_mode(clipboardMode)
 {
+#ifdef GTK3_CLIPBOARD
     switch (clipboardMode) {
     case QClipboard::Clipboard:
         m_clipboard = gtk_clipboard_get(gdk_atom_intern("CLIPBOARD", TRUE));
@@ -114,18 +115,25 @@ QGtkClipboardData::QGtkClipboardData(QClipboard::Mode clipboardMode)
     default:
         Q_UNREACHABLE();
     }
+#endif
 }
 
 QGtkClipboardData::~QGtkClipboardData()
 {
+#if GTK3_CLIPBOARD
     gtk_clipboard_set_can_store(m_clipboard, NULL, 0);
+#endif
     delete m_localData;
     delete m_systemData;
 }
 
 bool QGtkClipboardData::ownsMode() const
 {
+#if GTK3_CLIPBOARD
     return gtk_clipboard_get_owner(m_clipboard) != NULL;
+#else
+    return false;
+#endif
 }
 
 static void getFun(GtkClipboard *, GtkSelectionData *selection_data, guint info, gpointer gtkClipboardData)
@@ -155,18 +163,21 @@ void QGtkClipboardData::onLocalGet(GtkSelectionData *selection_data, guint info)
         return;
     }
 
+#ifdef GTK3_CLIPBOARD
     if (info == TargetTypeText) {
         gtk_selection_data_set_text(selection_data, m_localData->text().toUtf8().constData(), -1);
     } else if (info == TargetTypeImage) {
         QImage imageData = qvariant_cast<QImage>(m_localData->imageData());
         gtk_selection_data_set_pixbuf(selection_data, qt_pixmapToPixbuf(QPixmap::fromImage(imageData)).get());
     }
+#endif
 }
 
 // Set our local clipboard, and inform the system about it
 void QGtkClipboardData::setData(QMimeData *data)
 {
     qCDebug(lcClipboard) << "Setting mime data " << data << m_mode << (data ? data->formats() : QStringList());
+#ifdef GTK3_CLIPBOARD
     if (!data || data->formats().isEmpty()) {
         qCDebug(lcClipboard) << "Clearing mime data" << data;
         gtk_clipboard_clear(m_clipboard);
@@ -211,6 +222,7 @@ void QGtkClipboardData::setData(QMimeData *data)
     }
 
     gtk_target_list_unref(targetList);
+#endif
     m_localData = data;
 }
 
@@ -230,6 +242,7 @@ QMimeData *QGtkClipboardData::mimeData() const
         const_cast<QGtkClipboardData*>(this)->m_systemData = new QMimeData();
     }
 
+#ifdef GTK3_CLIPBOARD
     GtkSelectionData *gsel = gtk_clipboard_wait_for_contents(m_clipboard, gdk_atom_intern("TARGETS", TRUE));
     if (gsel) {
         if (gtk_selection_data_targets_include_image(gsel, FALSE)) {
@@ -260,7 +273,7 @@ QMimeData *QGtkClipboardData::mimeData() const
 
         gtk_selection_data_free(gsel);
     }
-
+#endif
 
 
     return m_systemData;
