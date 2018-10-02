@@ -111,7 +111,7 @@ public:
     bool onMotionNotify(GdkEvent *event);
     bool onTouchEvent(GdkEvent *event);
     bool onScrollEvent(GdkEvent *event);
-    void onWindowStateEvent(GdkEvent *event);
+    void onWindowStateEvent();
     void onWindowTickCallback();
     void onEnterLeaveWindow(GdkEvent *event, bool entered);
     void onLeaveContent();
@@ -144,6 +144,7 @@ private:
     QList<QWindowSystemInterface::TouchPoint> m_activeTouchPoints;
     Qt::MouseButtons m_buttons;
     Qt::WindowState m_state = Qt::WindowNoState;
+    GdkSurfaceState m_prevSurfaceState = (GdkSurfaceState)0;
     bool m_wantsUpdate = false;
     guint m_tick_callback = 0;
     Qt::WindowFlags m_flags = Qt::Widget;

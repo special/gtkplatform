@@ -123,11 +123,11 @@ static gboolean scroll_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
     return pw->onScrollEvent(event) ? TRUE : FALSE;
 }
 
-static gboolean window_state_event_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
+static gboolean surface_state_notify_cb(GtkWidget *, gpointer platformWindow)
 {
     QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
-    qCDebug(lcWindowEvents) << "window_state_event_cb" << pw;
-    pw->onWindowStateEvent(event);
+    qCDebug(lcWindowEvents) << "surface_state_notify_cb" << pw;
+    pw->onWindowStateEvent();
     return FALSE;
 }
 
@@ -216,7 +216,6 @@ void QGtkWindow::create(Qt::WindowType windowType)
     // to be sure...
     g_signal_connect(m_window.get(), "size-allocate", G_CALLBACK(size_allocate_cb), this);
     g_signal_connect(m_window.get(), "delete-event", G_CALLBACK(delete_cb), this);
-    g_signal_connect(m_window.get(), "window-state-event", G_CALLBACK(window_state_event_cb), this);
 
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add(GTK_CONTAINER(m_window.get()), vbox);
@@ -230,6 +229,13 @@ void QGtkWindow::create(Qt::WindowType windowType)
 
     gtk_widget_set_vexpand(m_content.get(), TRUE);
     gtk_box_pack_end(GTK_BOX(vbox), m_content.get());
+
+    // Realize window immediately to access surface
+    gtk_widget_realize(GTK_WIDGET(m_window.get()));
+
+    GdkSurface *surface = gtk_widget_get_surface(GTK_WIDGET(m_window.get()));
+    Q_ASSERT(surface);
+    g_signal_connect(surface, "notify::state", G_CALLBACK(surface_state_notify_cb), this);
 
     // ### Proximity? Touchpad gesture? Tablet?
     // XXX gtk_window_set_events was removed in a72404dd. A gdk equivalent
@@ -283,7 +289,6 @@ void QGtkWindow::create(Qt::WindowType windowType)
     m_touchDevice->setCapabilities(QTouchDevice::Position | QTouchDevice::MouseEmulation);
     QWindowSystemInterface::registerTouchDevice(m_touchDevice);
 
-    gtk_widget_realize(GTK_WIDGET(m_window.get()));
     setWindowState(window()->windowState());
     propagateSizeHints();
     setWindowFlags(window()->flags());
@@ -577,12 +582,13 @@ void QGtkWindow::setWindowState(Qt::WindowState requestedState)
     m_state = state;
 }
 
-void QGtkWindow::onWindowStateEvent(GdkEvent *event)
+void QGtkWindow::onWindowStateEvent()
 {
-    Qt::WindowState newState = Qt::WindowNoState;
-    GdkSurfaceState gdkChanged, gdkNewState;
-    gdk_event_get_surface_state(event, &gdkChanged, &gdkNewState);
+    GdkSurfaceState gdkNewState = gdk_surface_get_state(gtk_widget_get_surface(GTK_WIDGET(m_window.get())));
+    GdkSurfaceState gdkChanged = GdkSurfaceState(gdkNewState ^ m_prevSurfaceState);
+    m_prevSurfaceState = gdkNewState;
 
+    Qt::WindowState newState = Qt::WindowNoState;
     if (gdkNewState & GDK_SURFACE_STATE_ICONIFIED) {
         newState = Qt::WindowMinimized;
     }
