@@ -79,15 +79,14 @@ typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXC
 
 void QGtkX11Context::initialize()
 {
-    m_glxContext = nullptr;
-    m_display = gdk_x11_get_default_xdisplay();
-
     if (!GDK_IS_X11_DISPLAY(gdk_display_get_default())) {
         qFatal("QGtkX11Context should not be used for non-X11 displays");
     }
 
+    m_glxContext = nullptr;
+    m_display = gdk_x11_display_get_xdisplay(gdk_display_get_default());
     Display *display = reinterpret_cast<Display*>(m_display);
-    int xScreen = gdk_x11_get_default_screen();
+    int xScreen = gdk_x11_screen_get_screen_number(gdk_x11_display_get_screen(gdk_display_get_default()));
 
     GLXContext shareCtx = nullptr;
     if (m_shareContext)
