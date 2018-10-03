@@ -45,9 +45,9 @@ public:
 
         gtk_header_bar_set_title(GTK_HEADER_BAR(hb), "A magical Qt test");
         gtk_header_bar_set_subtitle(GTK_HEADER_BAR(hb), "Featuring a real GtkHeaderBar");
-        gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(hb), TRUE);
+        gtk_header_bar_set_show_title_buttons(GTK_HEADER_BAR(hb), TRUE);
 
-        openMenuButton = gtk_button_new_from_icon_name("open-menu-symbolic", GTK_ICON_SIZE_BUTTON);
+        openMenuButton = gtk_button_new_from_icon_name("open-menu-symbolic");
         gtk_header_bar_pack_end(GTK_HEADER_BAR(hb), openMenuButton.get());
     }
 
