@@ -116,9 +116,11 @@ void QGtkCursor::changeCursor(QCursor *windowCursor, QWindow *window)
 
     QGtkRefPtr<GdkCursor> c;
     if (bitmapCursor == false) {
-        c = gdk_cursor_new_from_name(gdk_display_get_default(), gtkCursorName.constData());
+        c = gdk_cursor_new_from_name(gtkCursorName.constData(), NULL);
     } else {
-        c = gdk_cursor_new_from_pixbuf(gdk_display_get_default(), qt_pixmapToPixbuf(windowCursor->pixmap()).get(), 0, 0);
+        QGtkRefPtr<GdkPixbuf> pb = qt_pixmapToPixbuf(windowCursor->pixmap());
+        QGtkRefPtr<GdkTexture> tx = gdk_texture_new_for_pixbuf(pb.get());
+        c = gdk_cursor_new_from_texture(tx.get(), 0, 0, NULL);
     }
 
     QGtkWindow *pw = static_cast<QGtkWindow*>(window->handle());
