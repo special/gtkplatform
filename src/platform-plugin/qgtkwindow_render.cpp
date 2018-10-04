@@ -164,26 +164,10 @@ void QGtkWindow::requestUpdate()
     }
 }
 
-QGtkCourierObject::QGtkCourierObject(QObject *parent)
-    : QObject(parent)
+void QGtkWindow::repaintWindow()
 {
-    qRegisterMetaType<QGtkWindow*>("QGtkWindow*");
-}
-
-void QGtkCourierObject::queueDraw(QGtkWindow *win)
-{
-    gtk_widget_queue_draw(win->gtkWindow().get());
-}
-
-QGtkCourierObject *QGtkCourierObject::instance;
-
-void QGtkWindow::invalidateRegion(const QRegion &)
-{
-    auto courier = QGtkCourierObject::instance;
-    Q_ASSERT(courier);
-    if (courier->thread() != QThread::currentThread()) {
-        // In the multithreaded case, always signal a full screen update for now
-        courier->metaObject()->invokeMethod(courier, "queueDraw", Qt::QueuedConnection, Q_ARG(QGtkWindow*, this));
+    if (thread() != QThread::currentThread()) {
+        metaObject()->invokeMethod(this, "repaintWindow", Qt::QueuedConnection);
         return;
     }
 

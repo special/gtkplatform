@@ -40,6 +40,8 @@ class QTouchDevice;
 
 class QGtkWindow : public QObject, public QPlatformWindow
 {
+    Q_OBJECT
+
 public:
     QGtkWindow(QWindow *window);
     ~QGtkWindow();
@@ -117,7 +119,7 @@ public:
     void onLeaveContent();
     QImage *beginUpdateFrame(const QString &reason);
     void endUpdateFrame(const QString &reason);
-    void invalidateRegion(const QRegion &region);
+    Q_INVOKABLE void repaintWindow();
     QImage currentFrameImage() const;
 
     QGtkRefPtr<GtkMenuBar> gtkMenuBar() const;
@@ -175,17 +177,6 @@ private:
     double m_initialRotate = 0;
     bool m_hasTickCallback = false;
     QTimer *m_cancelTickTimer = nullptr;
-};
-
-class QGtkCourierObject : public QObject
-{
-    Q_OBJECT
-
-public:
-    static QGtkCourierObject *instance;
-
-    QGtkCourierObject(QObject *parent = nullptr);
-    Q_INVOKABLE void queueDraw(QGtkWindow *win);
 };
 
 QT_END_NAMESPACE

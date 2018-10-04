@@ -136,7 +136,7 @@ void QGtkOpenGLContext::swapBuffers(QPlatformSurface *surface)
     funcs.glReadPixels(0, 0, image->width(), image->height(), GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, image->bits());
 
     win->endUpdateFrame("swapBuffers");
-    win->invalidateRegion(QRegion());
+    win->repaintWindow();
 
     // If swap is called on the main thread, then assume that the application
     // knows what it is doing, and can self-throttle (either via requestUpdate,

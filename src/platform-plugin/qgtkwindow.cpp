@@ -153,9 +153,6 @@ QGtkWindow::QGtkWindow(QWindow *window)
     , m_windowGeometry(0, 0, 1, 1)
 {
     create(window->type());
-
-    if (!QGtkCourierObject::instance)
-        QGtkCourierObject::instance = new QGtkCourierObject(QCoreApplication::instance());
 }
 
 void QGtkWindow::create(Qt::WindowType windowType)

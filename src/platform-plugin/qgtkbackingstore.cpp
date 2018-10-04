@@ -90,10 +90,10 @@ void QGtkBackingStore::composeAndFlush(QWindow *window, const QRegion &region, c
 #endif
 }
 
-void QGtkBackingStore::flush(QWindow *window, const QRegion &region, const QPoint &offset)
+void QGtkBackingStore::flush(QWindow *window, const QRegion &, const QPoint &)
 {
     TRACE_EVENT0("gfx", "QGtkBackingStore::flush");
-    static_cast<QGtkWindow*>(window->handle())->invalidateRegion(region.translated(offset));
+    static_cast<QGtkWindow*>(window->handle())->repaintWindow();
 }
 
 void QGtkBackingStore::resize(const QSize &size, const QRegion &)
@@ -154,8 +154,7 @@ bool QGtkBackingStore::scroll(const QRegion &region, int dx, int dy)
     }
 
     qgwin->endUpdateFrame("scroll");
-    QRegion uregion = region.united(region.translated(delta));
-    qgwin->invalidateRegion(uregion);
+    qgwin->repaintWindow();
 
     return true;
 }
