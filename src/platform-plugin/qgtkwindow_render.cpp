@@ -39,7 +39,7 @@ Q_LOGGING_CATEGORY(lcWindowRender, "qt.qpa.gtk.window.render");
 // debug QGtkWindow lock on surface content
 #undef LOCK_DEBUG
 
-void QGtkWindow::drawCallback(GtkWidget *, cairo_t *cr, gpointer platformWindow)
+void QGtkWindow::drawCallback(GtkDrawingArea *, cairo_t *cr, int, int, gpointer platformWindow)
 {
     QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
     qCDebug(lcWindowRender) << "drawCallback" << pw;
@@ -48,6 +48,8 @@ void QGtkWindow::drawCallback(GtkWidget *, cairo_t *cr, gpointer platformWindow)
 
 void QGtkWindow::onDraw(cairo_t *cr)
 {
+    // ### "In the drawing stage it is not allowed to change properties of any GTK widgets"
+    // (gtk_drawing_area_set_draw_func). This should probably move.
     if (m_newGeometry != m_windowGeometry) {
         bool needsExpose = m_newGeometry.size() != m_windowGeometry.size();
 #if QT_VERSION >= QT_VERSION_CHECK(5,10,0)

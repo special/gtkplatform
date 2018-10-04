@@ -153,7 +153,7 @@ private:
     Qt::KeyboardModifiers m_scrollModifiers = Qt::NoModifier;
     bool m_scrollStarted = false;
 
-    static void drawCallback(GtkWidget *, cairo_t *cr, gpointer platformWindow);
+    static void drawCallback(GtkDrawingArea *, cairo_t *cr, int width, int height, gpointer platformWindow);
     static gboolean windowTickCallback(GtkWidget*, GdkFrameClock *, gpointer platformWindow);
 
     static void zoom_cb(GtkGestureZoom *pt, gdouble scale, gpointer platformWindow);

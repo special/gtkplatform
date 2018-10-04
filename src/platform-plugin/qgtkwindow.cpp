@@ -229,8 +229,7 @@ void QGtkWindow::create(Qt::WindowType windowType)
     gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(m_menubar.get()));
 
     m_content = gtk_drawing_area_new();
-    g_signal_connect(m_content.get(), "draw", G_CALLBACK(QGtkWindow::drawCallback), this);
-
+    gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(m_content.get()), &QGtkWindow::drawCallback, this, NULL);
     gtk_widget_set_vexpand(m_content.get(), TRUE);
     gtk_box_pack_end(GTK_BOX(vbox), m_content.get());
 
