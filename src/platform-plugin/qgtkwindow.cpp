@@ -52,15 +52,17 @@ static void unmap_cb(GtkWidget *, gpointer platformWindow)
     pw->onUnmap();
 }
 
-static gboolean configure_cb(GtkWidget *, GdkEvent *, gpointer platformWindow)
+static gboolean configure_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
 {
-    QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
-    qCDebug(lcWindowEvents) << "configure_cb" << pw;
-    pw->onConfigure();
-    return FALSE;
+    if (gdk_event_get_event_type(event) == GDK_CONFIGURE) {
+        QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
+        qCDebug(lcWindowEvents) << "configure_cb" << pw;
+        pw->onConfigure();
+    }
+    return GDK_EVENT_PROPAGATE;
 }
 
-static void size_allocate_cb(GtkWidget *, GdkRectangle *, gint, GdkRectangle *, gpointer platformWindow)
+static void size_allocate_cb(GtkWidget *, GdkRectangle *, gint, gpointer platformWindow)
 {
     QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
     qCDebug(lcWindowEvents) << "size_allocate_cb" << pw;
@@ -123,7 +125,7 @@ static gboolean scroll_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
     return pw->onScrollEvent(event) ? TRUE : FALSE;
 }
 
-static gboolean surface_state_notify_cb(GtkWidget *, gpointer platformWindow)
+static gboolean surface_state_notify_cb(GtkWidget *, GParamSpec *, gpointer platformWindow)
 {
     QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
     qCDebug(lcWindowEvents) << "surface_state_notify_cb" << pw;
@@ -207,7 +209,9 @@ void QGtkWindow::create(Qt::WindowType windowType)
 
     g_signal_connect(m_window.get(), "map", G_CALLBACK(map_cb), this);
     g_signal_connect(m_window.get(), "unmap", G_CALLBACK(unmap_cb), this);
-    g_signal_connect(m_window.get(), "configure-event", G_CALLBACK(configure_cb), this);
+    // XXX I am not sure this is the right replacement for configure-event, particularly
+    // whether gtkwindow/gtkwidget will have updated anything when this arrives..
+    g_signal_connect(m_window.get(), "event", G_CALLBACK(configure_cb), this);
     g_signal_connect(m_window.get(), "enter-notify-event", G_CALLBACK(enter_leave_window_notify_cb), this);
     g_signal_connect(m_window.get(), "leave-notify-event", G_CALLBACK(enter_leave_window_notify_cb), this);
 
