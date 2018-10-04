@@ -103,7 +103,7 @@ public:
     void onMap();
     void onUnmap();
     void onConfigure();
-    bool onDelete();
+    bool onCloseRequest();
     bool onKeyPress(GdkEvent *event);
     bool onKeyRelease(GdkEvent *event);
     bool onButtonPress(GdkEvent *event);

@@ -52,13 +52,22 @@ static void unmap_cb(GtkWidget *, gpointer platformWindow)
     pw->onUnmap();
 }
 
-static gboolean configure_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
+static gboolean event_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
 {
-    if (gdk_event_get_event_type(event) == GDK_CONFIGURE) {
-        QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
-        qCDebug(lcWindowEvents) << "configure_cb" << pw;
+    QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
+    GdkEventType type = gdk_event_get_event_type(event);
+
+    if (type == GDK_CONFIGURE) {
+        qCDebug(lcWindowEvents) << "GDK_CONFIGURE" << pw;
+        // ### I am not sure this is the right replacement for configure-event, particularly
+        // whether gtkwindow/gtkwidget will have updated anything when this arrives..
         pw->onConfigure();
+    } else if (type == GDK_ENTER_NOTIFY || type == GDK_LEAVE_NOTIFY) {
+        bool entering = gdk_event_get_event_type(event) == GDK_ENTER_NOTIFY;
+        qCDebug(lcWindowEvents) << "GDK_ENTER/LEAVE_NOTIFY" << pw << entering;
+        pw->onEnterLeaveWindow(event, entering);
     }
+
     return GDK_EVENT_PROPAGATE;
 }
 
@@ -69,39 +78,36 @@ static void size_allocate_cb(GtkWidget *, GdkRectangle *, gint, gpointer platfor
     pw->onConfigure();
 }
 
-static gboolean delete_cb(GtkWidget *, GdkEvent *, gpointer platformWindow)
+static gboolean close_request_cb(GtkWidget *, gpointer platformWindow)
 {
     QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
-    qCDebug(lcWindowEvents) << "delete_cb" << pw;
-    return pw->onDelete() ? TRUE : FALSE;
+    qCDebug(lcWindowEvents) << "close_request_cb" << pw;
+    return pw->onCloseRequest() ? TRUE : FALSE;
 }
 
-static gboolean key_press_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
+static gboolean content_event_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
 {
     QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
-    qCDebug(lcWindowEvents) << "key_press_cb" << pw;
-    return pw->onKeyPress(event) ? TRUE : FALSE;
-}
+    GdkEventType type = gdk_event_get_event_type(event);
 
-static gboolean key_release_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
-{
-    QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
-    qCDebug(lcWindowEvents) << "key_release_cb" << pw;
-    return pw->onKeyRelease(event) ? TRUE : FALSE;
-}
+    if (type == GDK_KEY_PRESS) {
+        qCDebug(lcWindowEvents) << "GDK_KEY_PRESS" << pw;
+        return pw->onKeyPress(event);
+    } else if (type == GDK_KEY_RELEASE) {
+        qCDebug(lcWindowEvents) << "GDK_KEY_RELEASE" << pw;
+        return pw->onKeyRelease(event);
+    } else if (type == GDK_BUTTON_PRESS) {
+        qCDebug(lcWindowEvents) << "GDK_BUTTON_PRESS" << pw;
+        return pw->onButtonPress(event);
+    } else if (type == GDK_BUTTON_RELEASE) {
+        qCDebug(lcWindowEvents) << "GDK_BUTTON_RELEASE" << pw;
+        return pw->onButtonRelease(event);
+    } else if (type == GDK_MOTION_NOTIFY) {
+        qCDebug(lcWindowEvents) << "GDK_MOTION_NOTIFY" << pw;
+        return pw->onMotionNotify(event);
+    }
 
-static gboolean button_press_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
-{
-    QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
-    qCDebug(lcWindowEvents) << "button_press_cb" << pw;
-    return pw->onButtonPress(event) ? TRUE : FALSE;
-}
-
-static gboolean button_release_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
-{
-    QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
-    qCDebug(lcWindowEvents) << "button_release_cb" << pw;
-    return pw->onButtonRelease(event) ? TRUE : FALSE;
+    return GDK_EVENT_PROPAGATE;
 }
 
 static gboolean touch_event_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
@@ -131,15 +137,6 @@ static gboolean surface_state_notify_cb(GtkWidget *, GParamSpec *, gpointer plat
     qCDebug(lcWindowEvents) << "surface_state_notify_cb" << pw;
     pw->onWindowStateEvent();
     return FALSE;
-}
-
-static gboolean enter_leave_window_notify_cb(GtkWidget *, GdkEvent *event, gpointer platformWindow)
-{
-    QGtkWindow *pw = static_cast<QGtkWindow*>(platformWindow);
-    bool entering = gdk_event_get_event_type(event) == GDK_ENTER_NOTIFY;
-    qCDebug(lcWindowEvents) << "enter_leave_window_notify_cb" << pw << entering;
-    pw->onEnterLeaveWindow(event, entering);
-    return false;
 }
 
 static gboolean leave_content_notify_cb(GtkWidget *, GdkEvent *, gpointer platformWindow)
@@ -209,17 +206,13 @@ void QGtkWindow::create(Qt::WindowType windowType)
 
     g_signal_connect(m_window.get(), "map", G_CALLBACK(map_cb), this);
     g_signal_connect(m_window.get(), "unmap", G_CALLBACK(unmap_cb), this);
-    // XXX I am not sure this is the right replacement for configure-event, particularly
-    // whether gtkwindow/gtkwidget will have updated anything when this arrives..
-    g_signal_connect(m_window.get(), "event", G_CALLBACK(configure_cb), this);
-    g_signal_connect(m_window.get(), "enter-notify-event", G_CALLBACK(enter_leave_window_notify_cb), this);
-    g_signal_connect(m_window.get(), "leave-notify-event", G_CALLBACK(enter_leave_window_notify_cb), this);
+    g_signal_connect(m_window.get(), "event", G_CALLBACK(event_cb), this);
 
     // for whatever reason, configure-event is not enough. it doesn't seem to
     // get emitted for popup type windows. so also connect to size-allocate just
     // to be sure...
     g_signal_connect(m_window.get(), "size-allocate", G_CALLBACK(size_allocate_cb), this);
-    g_signal_connect(m_window.get(), "delete-event", G_CALLBACK(delete_cb), this);
+    g_signal_connect(m_window.get(), "close-request", G_CALLBACK(close_request_cb), this);
 
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add(GTK_CONTAINER(m_window.get()), vbox);
@@ -259,12 +252,9 @@ void QGtkWindow::create(Qt::WindowType windowType)
 
     // Register event handlers that need coordinates on the content widget, not
     // the window.
-    g_signal_connect(m_content.get(), "button-press-event", G_CALLBACK(button_press_cb), this);
-    g_signal_connect(m_content.get(), "button-release-event", G_CALLBACK(button_release_cb), this);
+    g_signal_connect(m_content.get(), "event", G_CALLBACK(content_event_cb), this);
+
     g_signal_connect(m_content.get(), "touch-event", G_CALLBACK(touch_event_cb), this);
-    g_signal_connect(m_content.get(), "motion-notify-event", G_CALLBACK(motion_notify_cb), this);
-    g_signal_connect(m_content.get(), "key-press-event", G_CALLBACK(key_press_cb), this);
-    g_signal_connect(m_content.get(), "key-release-event", G_CALLBACK(key_release_cb), this);
     g_signal_connect(m_content.get(), "scroll-event", G_CALLBACK(scroll_cb), this);
     g_signal_connect(m_content.get(), "leave-notify-event", G_CALLBACK(leave_content_notify_cb), this);
     gtk_widget_set_can_focus(m_content.get(), true);
@@ -400,7 +390,7 @@ void QGtkWindow::onConfigure()
                           contentRect.width, contentRect.height);
 }
 
-bool QGtkWindow::onDelete()
+bool QGtkWindow::onCloseRequest()
 {
     bool accepted = false;
     QWindowSystemInterface::handleCloseEvent(window(), &accepted);

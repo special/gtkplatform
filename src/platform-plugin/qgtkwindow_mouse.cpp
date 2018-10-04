@@ -38,10 +38,14 @@ Q_LOGGING_CATEGORY(lcMouseMotion, "qt.qpa.gtk.mouse.motion");
 
 static bool qt_gdkMouseEventToFields(GdkEvent *event, Qt::MouseButton &button, QPointF &coords, QPointF &rootCoords, Qt::KeyboardModifiers &qtMods) {
     guint gdkButton = 0;
-    if (!gdk_event_get_button(event, &gdkButton)) {
+    if (gdk_event_get_event_type(event) == GDK_MOTION_NOTIFY) {
+        // this is discarded for motion events; they track buttons separately
+        button = Qt::NoButton;
+    } else if (!gdk_event_get_button(event, &gdkButton)) {
         return false;
+    } else {
+        button = qt_convertGButtonToQButton(gdkButton);
     }
-    button = qt_convertGButtonToQButton(gdkButton);
 
     gdouble x = 0, y = 0;
     if (!gdk_event_get_coords(event, &x, &y)) {
@@ -124,6 +128,9 @@ bool QGtkWindow::onButtonRelease(GdkEvent *event)
 
 bool QGtkWindow::onMotionNotify(GdkEvent *event)
 {
+    // ### Technically, the event state field has the current buttons
+    // in the mask, and that could be used instead of m_buttons. Not
+    // sure there's any point. Here, 'b' has no useful value.
     Qt::MouseButton b;
     QPointF coords, rootCoords;
     Qt::KeyboardModifiers qtMods;
